@@ -101,7 +101,7 @@ def main():
     use_cuda = not args.no_cuda and torch.cuda.is_available()
 
     torch.manual_seed(args.seed)
-    
+
     train_kwargs = {'batch_size': args.batch_size}
     test_kwargs = {'batch_size': args.test_batch_size}
     if use_cuda:
@@ -115,11 +115,11 @@ def main():
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
         ])
-    dataset1 = datasets.MNIST('data',
+    dataset1 = datasets.MNIST('/n/home05/atlandau/machine_learning/datasets/',
                               train=True,
                               download=False,
                               transform=transform)
-    dataset2 = datasets.MNIST('data',
+    dataset2 = datasets.MNIST('/n/home05/atlandau/machine_learning/datasets/',
                               train=False,
                               download=False,
                               transform=transform)
@@ -131,16 +131,21 @@ def main():
     print(f"Hello from rank {rank} of {world_size} on {gethostname()} where there are" \
           f" {gpus_per_node} allocated GPUs per node.", flush=True)
 
-    setup(rank, world_size)
-    if rank == 0: print(f"Group initialized? {dist.is_initialized()}", flush=True)
+    if world_size > 1:
+	setup(rank, world_size)
+    	if rank == 0: print(f"Group initialized? {dist.is_initialized()}", flush=True)
 
     local_rank = rank - gpus_per_node * (rank // gpus_per_node)
     torch.cuda.set_device(local_rank)
     print(f"host: {gethostname()}, rank: {rank}, local_rank: {local_rank}")
 
-    train_sampler = torch.utils.data.distributed.DistributedSampler(dataset1,
-                                                                    num_replicas=world_size,
-                                                                    rank=rank)
+    if world_size > 1:
+        train_sampler = torch.utils.data.distributed.DistributedSampler(dataset1,
+                                                                        num_replicas=world_size,
+                                                                        rank=rank)
+    else:
+	train_sampler = None
+
     train_loader = torch.utils.data.DataLoader(dataset1,
                                                batch_size=args.batch_size,
                                                sampler=train_sampler,
@@ -148,9 +153,9 @@ def main():
                                                pin_memory=True)
     test_loader = torch.utils.data.DataLoader(dataset2,
                                               **test_kwargs)
-    
+
     model = Net().to(local_rank)
-    ddp_model = DDP(model, device_ids=[local_rank])
+    ddp_model = DDP(model, device_ids=[local_rank]) if world_size > 1 else model
     optimizer = optim.Adadelta(ddp_model.parameters(), lr=args.lr)
 
     scheduler = StepLR(optimizer, step_size=1, gamma=args.gamma)
@@ -162,7 +167,8 @@ def main():
     if args.save_model and rank == 0:
         torch.save(model.state_dict(), "mnist_cnn.pt")
 
-    dist.destroy_process_group()
+    if world_size > 1:
+        dist.destroy_process_group()
 
 
 if __name__ == '__main__':
