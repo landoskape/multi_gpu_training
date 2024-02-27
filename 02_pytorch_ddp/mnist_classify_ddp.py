@@ -132,8 +132,9 @@ def main():
           f" {gpus_per_node} allocated GPUs per node.", flush=True)
 
     if world_size > 1:
-	setup(rank, world_size)
-    	if rank == 0: print(f"Group initialized? {dist.is_initialized()}", flush=True)
+        setup(rank, world_size)
+        if rank == 0: 
+            print(f"Group initialized? {dist.is_initialized()}", flush=True)
 
     local_rank = rank - gpus_per_node * (rank // gpus_per_node)
     torch.cuda.set_device(local_rank)
@@ -144,7 +145,7 @@ def main():
                                                                         num_replicas=world_size,
                                                                         rank=rank)
     else:
-	train_sampler = None
+        train_sampler = None
 
     train_loader = torch.utils.data.DataLoader(dataset1,
                                                batch_size=args.batch_size,

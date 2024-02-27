@@ -2,7 +2,7 @@
 #SBATCH --job-name=ddp-torch     # create a short name for your job
 #SBATCH --partition=kempner      # partition (#ATL)
 #SBATCH --account=kempner_bsabatini_lab # account (#ATL)
-#SBATCH --nodes=4                # node count
+#SBATCH --nodes=1                # node count
 #SBATCH --ntasks-per-node=4      # total number of tasks per node
 #SBATCH --cpus-per-task=16        # cpu-cores per task (>1 if multi-threaded tasks)
 #SBATCH --mem=32G                # total memory per node (4 GB per cpu-core is default)
